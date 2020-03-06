@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Convulse</title>
+    <style>
+      body {
+        background-color: #000;
+        color: #fff;
+        margin: 0;
+        font-family: sans-serif;
+      }
+      video {
+        height: 100vh;
+        width: 100vw;
+      }
+      #download {
+        display: none;
+      }
+      #toasts {
+        position: fixed;
+        z-index: 2;
+        top: 0;
+        background-color: blue;
+        width: 100%;
+        opacity: 0.3;
+        text-align: center;
+      }
+      video {
+        filter: grayscale(100%);
+      }
+      video.recording {
+        filter: initial;
+      }
+    </style>
+    <script>
+function toast(text, timeout=8000) {
+  let toasts = document.querySelector("#toasts")
+  if (! text) {
+    while (toasts.firstChild) {
+      toasts.firstChild.remove()
+    }
+  } else {
+    let p = document.querySelector("#toasts").appendChild(document.createElement("p"))
+    p.textContent = text
+    if (timeout) {
+      setTimeout(() => p.remove(), timeout)
+    }
+  }
+}
+
+class Convulse {
+  constructor() {
+    this.video = document.querySelector("video")
+    this.dllink = document.querySelector("#download")
+    this.init()
+    this.chunks = []
+  }
+  
+  
+  download(event) {
+    let recording = window.URL.createObjectURL(new Blob(this.chunks, {type: this.recorder.mimeType}))
+    let now = new Date().toISOString()
+    
+    this.dllink.addEventListener('progress', event => console.log(event))
+    this.dllink.href = recording
+    this.dllink.download = "convulse-" + now + ".webm"
+    this.dllink.click()
+  }
+  
+  start() {
+    toast(null)
+    this.chunks = []
+    this.recorder.start(10)
+    this.video.classList.add("recording")
+  }
+  
+  stop() {
+    toast("stopped and downloaded")
+    this.recorder.stop()
+    this.video.classList.remove("recording")
+  }
+  
+  toggle() {
+    if (this.recorder.state == "recording") {
+      this.stop()
+      this.download()
+    } else {
+      this.start()
+    }
+  }
+  
+  async init() {
+    document.querySelector("h1").remove()
+  
+    this.webcam = await navigator.mediaDevices.getUserMedia({video: true})
+    this.video.srcObject = this.webcam
+    this.video.play()
+    this.video.addEventListener("click", event => this.toggle())
+
+    this.desktop = await navigator.mediaDevices.getDisplayMedia({video: {cursor: "always"}})
+    this.recorder = new MediaRecorder(this.desktop, {mimeType: "video/webm"})
+    this.recorder.addEventListener("dataavailable", event => {
+      if (event.data && event.data.size > 0) {
+        this.chunks.push(event.data)
+      }
+    })
+    
+    toast("Click anywhere to start and stop recording")
+  }
+}
+
+function init() {
+  window.app = new Convulse()
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init)
+} else {
+  init()
+}
+    </script>
+  </head>
+  <body>
+    <h1>Convulse: it's sorta like Twitch!</h1>
+    <video>
+      It's too bad about your browser.
+    </video>
+    <div id="toasts"></div>
+    <a id="download"></a>
+  </body>
+</html>
