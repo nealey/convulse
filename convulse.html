@@ -2,130 +2,48 @@
 <html>
   <head>
     <title>Convulse</title>
-    <style>
-      body {
-        background-color: #000;
-        color: #fff;
-        margin: 0;
-        font-family: sans-serif;
-      }
-      video {
-        height: 100vh;
-        width: 100vw;
-      }
-      #download {
-        display: none;
-      }
-      #toasts {
-        position: fixed;
-        z-index: 2;
-        top: 0;
-        background-color: blue;
-        width: 100%;
-        opacity: 0.3;
-        text-align: center;
-      }
-      video {
-        filter: grayscale(100%);
-      }
-      video.recording {
-        filter: initial;
-      }
-    </style>
-    <script>
-function toast(text, timeout=8000) {
-  let toasts = document.querySelector("#toasts")
-  if (! text) {
-    while (toasts.firstChild) {
-      toasts.firstChild.remove()
-    }
-  } else {
-    let p = document.querySelector("#toasts").appendChild(document.createElement("p"))
-    p.textContent = text
-    if (timeout) {
-      setTimeout(() => p.remove(), timeout)
-    }
-  }
-}
-
-class Convulse {
-  constructor() {
-    this.video = document.querySelector("video")
-    this.dllink = document.querySelector("#download")
-    this.init()
-    this.chunks = []
-  }
-  
-  
-  download(event) {
-    let recording = window.URL.createObjectURL(new Blob(this.chunks, {type: this.recorder.mimeType}))
-    let now = new Date().toISOString()
-    
-    this.dllink.addEventListener('progress', event => console.log(event))
-    this.dllink.href = recording
-    this.dllink.download = "convulse-" + now + ".webm"
-    this.dllink.click()
-  }
-  
-  start() {
-    toast(null)
-    this.chunks = []
-    this.recorder.start(10)
-    this.video.classList.add("recording")
-  }
-  
-  stop() {
-    toast("stopped and downloaded")
-    this.recorder.stop()
-    this.video.classList.remove("recording")
-  }
-  
-  toggle() {
-    if (this.recorder.state == "recording") {
-      this.stop()
-      this.download()
-    } else {
-      this.start()
-    }
-  }
-  
-  async init() {
-    document.querySelector("h1").remove()
-  
-    this.webcam = await navigator.mediaDevices.getUserMedia({video: true})
-    this.video.srcObject = this.webcam
-    this.video.play()
-    this.video.addEventListener("click", event => this.toggle())
-
-    this.desktop = await navigator.mediaDevices.getDisplayMedia({video: {cursor: "always"}})
-    this.recorder = new MediaRecorder(this.desktop, {mimeType: "video/webm"})
-    this.recorder.addEventListener("dataavailable", event => {
-      if (event.data && event.data.size > 0) {
-        this.chunks.push(event.data)
-      }
-    })
-    
-    toast("Click anywhere to start and stop recording")
-  }
-}
-
-function init() {
-  window.app = new Convulse()
-}
-
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init)
-} else {
-  init()
-}
-    </script>
+    <link rel="stylesheet" href="convulse.css">
+    <script src="convulse.js"></script>
   </head>
   <body>
-    <h1>Convulse: it's sorta like Twitch!</h1>
-    <video>
-      It's too bad about your browser.
-    </video>
+    <div id="hello">
+      <h1>Convulse: it's sorta like Twitch!</h1>
+      <p>
+        I need the following permissions:
+      </p>
+      <dl>
+        <dt>Use your microphone</dt>
+        <dd>So I can record your velvety-smooth voice</dd>
+        
+        <dt>Use your camera</dt>
+        <dd>So I can record your velvety-smooth face</dd>
+        
+        <dt>Share your screen</dt>
+        <dd>So I can record your velvety-smooth computer</dd>
+      </dl>
+    </div>
+    
+    <canvas></canvas>
+    
+    <div id="videos" class="hidden">
+      <video id="webcam"></video>
+      <video id="desktop"></video>
+    </div>
+    
+    <div id="controls">
+      <p>
+        UR FACE
+        <input id="webcam-size" type="range" min="0.05" max="1.0" step="0.05" value="0.2">
+        <button id="webcam-pos">Move</button>
+      </p>
+      
+      <p>
+        Capture Area
+        <input id="capture-size" type="range" min="0.04" max="1.0" step="0.05" value="0.2">
+        <button id="range-pos">Move</button>
+      </p>
+    </div>
+    
     <div id="toasts"></div>
-    <a id="download"></a>
   </body>
 </html>
