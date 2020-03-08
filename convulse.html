@@ -24,6 +24,7 @@
     </div>
     
     <canvas></canvas>
+    <div id="indicator">⬤</div>
     
     <div id="videos" class="hidden">
       <video id="webcam"></video>
@@ -31,17 +32,21 @@
     </div>
     
     <div id="controls">
-      <p>
+      <div class="hidden">
+        <button id="rec">⏺️</button>
+        <a id="save">💾</a>
+      </div>
+      <div id="webcam-controls">
         UR FACE
-        <input id="webcam-size" type="range" min="0.05" max="1.0" step="0.05" value="0.2">
+        <input id="webcam-size" type="range" min="0.05" max="1.0" step="0.01" value="0.2">
         <button id="webcam-pos">Move</button>
-      </p>
+      </div>
       
-      <p>
+      <div id="desktop-controls">
         Capture Area
-        <input id="capture-size" type="range" min="0.04" max="1.0" step="0.05" value="0.2">
-        <button id="range-pos">Move</button>
-      </p>
+        <input id="desktop-size" type="range" min="1.0" max="3.0" step="0.01" value="0.2">
+        <button id="desktop-pos">Move</button>
+      </div>
     </div>
     
     <div id="toasts"></div>

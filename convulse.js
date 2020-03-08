@@ -1,5 +1,7 @@
 // jshint asi:true
 
+Math.TAU = Math.PI * 2
+
 function toast(text, timeout=8000) {
   let toasts = document.querySelector("#toasts")
   if (! text) {
@@ -17,85 +19,41 @@ function toast(text, timeout=8000) {
 
 class Convulse {
   constructor() {
+    this.chunks = []
     this.canvas = document.querySelector("canvas")
     this.ctx = this.canvas.getContext("2d")
     this.dllink = document.querySelector("#download")
     this.webcamVideo = document.querySelector("#webcam")
     this.desktopVideo = document.querySelector("#desktop")
-    document.addEventListener("click", event => this.toggle())
-    this.chunks = []
-    
-    document.addEventListener("mouseenter", e => this.showControls(true))
-    document.addEventListener("mouseleave", e => this.showControls(false))
-    this.init()
-  }
-  
-  showControls(show) {
-    let controls = document.querySelector("#controls")
-    if (show) {
-      controls.classList.remove("hidden")
-    } else {
-      controls.classList.add("hidden")
-    }
-  }
-  
-  download(event) {
-    let recording = window.URL.createObjectURL(new Blob(this.chunks, {type: this.recorder.mimeType}))
-    let now = new Date().toISOString()
-    
-    this.dllink.addEventListener('progress', event => console.log(event))
-    this.dllink.href = recording
-    this.dllink.download = "convulse-" + now + ".webm"
-    this.dllink.click()
-  }
-  
-  start() {
-    toast(null)
-    this.chunks = []
-    this.recorder.start(10)
-    this.canvas.classList.add("recording")
-  }
-  
-  stop() {
-    toast("stopped and downloaded")
-    this.recorder.stop()
-    this.canvas.classList.remove("recording")
-  }
-  
-  toggle() {
-    if (this.recorder.state == "recording") {
-      this.stop()
-      this.download()
-    } else {
-      this.start()
-    }
-  }
-  
-  frame(timestamp) {
-    if (this.webcamVideo.videoWidth > 0) {
-      let webcamAR = this.webcamVideo.videoWidth / this.webcamVideo.videoHeight
-      let desktopAR = this.desktopVideo.videoWidth / this.desktopVideo.videoHeight
-      
-      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
 
-      this.ctx.drawImage(this.desktopVideo, 0, 0, this.canvas.height * desktopAR, this.canvas.height)
-      this.ctx.drawImage(this.webcamVideo, 0, 0, webcamAR * 400, 400)
-      if (timestamp % 2000 < 1000) {
-        this.ctx.beginPath()
-        this.ctx.strokeStyle = "red"
-        this.ctx.lineWidth = "6"
-        this.ctx.rect(20, 20, 150, 100)
-        this.ctx.stroke()
-      }
-    }
-
-    requestAnimationFrame(ts => this.frame(ts))
-  }
-  
-  async init() {
     this.canvas.width = 1920
     this.canvas.height = 1080
+    document.querySelector("#indicator").classList.add("hidden")
+
+    document.addEventListener("mouseenter", e => this.showControls(true))
+    document.addEventListener("mouseleave", e => this.showControls(false))
     
+    document.querySelector("canvas").addEventListener("click", e => this.rec(e))
+    document.querySelector("#rec").addEventListener("click", e => this.rec(e))
+    //document.querySelector("#save").addEventListener("click", e => this.save(e))
+    
+    document.querySelector("#webcam-size").addEventListener("input", e => this.setWebcamSize(e))
+    document.querySelector("#webcam-size").value = localStorage.webcamSize || 0.3
+    document.querySelector("#webcam-size").dispatchEvent(new Event("input"))
+    document.querySelector("#webcam-pos").addEventListener("click", e => this.setWebcamPos(e))
+    this.webcamPos = localStorage.webcamPos || 2
+    
+    document.querySelector("#desktop-size").addEventListener("input", e => this.setDesktopSize(e))
+    document.querySelector("#desktop-size").value = localStorage.desktopSize || 2.0
+    document.querySelector("#desktop-size").dispatchEvent(new Event("input"))
+    document.querySelector("#desktop-pos").addEventListener("click", e => this.setDesktopPos(e))
+    this.desktopPos = localStorage.desktopPos || 0
+    
+    this.init()
+  }
+
+  async init() {
+    this.webcamVideo.muted = true
     this.webcamVideo.srcObject = await navigator.mediaDevices.getUserMedia({video: true, audio: true})
     this.webcamVideo.play()
 
@@ -115,7 +73,7 @@ class Convulse {
       console.log("Adding audio track", at)
     }
     
-    this.recorder = new MediaRecorder(this.canvas.captureStream(30), {mimeType: "video/webm"})
+    this.recorder = new MediaRecorder(this.mediaStream, {mimeType: "video/webm"})
     this.recorder.addEventListener("dataavailable", event => {
       if (event.data && event.data.size > 0) {
         this.chunks.push(event.data)
@@ -126,6 +84,97 @@ class Convulse {
 
     toast("Click anywhere to start and stop recording")
   }
+  
+  setWebcamSize(event) {
+    this.webcamSize = event.target.value
+    localStorage.webcamSize = this.webcamSize
+  }
+  
+  setWebcamPos(event) {
+    this.webcamPos = (this.webcamPos + 1) % 9
+    localStorage.webcamPos = this.webcamPos
+  }
+  
+  setDesktopSize(event) {
+    this.desktopSize = event.target.value
+    localStorage.desktopSize = this.desktopSize
+  }
+  
+  setDesktopPos(event) {
+    this.desktopPos = (this.desktopPos + 1) % 9
+    localStorage.desktopPos = this.desktopPos
+  }
+  
+  rec(event) {
+    let button = document.querySelector("#rec")
+    if (this.recorder.state == "recording") {
+      // Stop
+      this.recorder.stop()
+      this.canvas.classList.remove("recording")
+      document.querySelector("#indicator").classList.add("hidden")
+      button.textContent = "⏺️"
+      toast("Stopped")
+      this.save()
+    } else {
+      // Start
+      this.recorder.start(10)
+      this.canvas.classList.add("recording")
+      document.querySelector("#indicator").classList.remove("hidden")
+      button.textContent = "⏹️"
+      toast("Recording: click anywhere to stop")
+    }
+  }
+  
+  showControls(show) {
+    let controls = document.querySelector("#controls")
+    if (show) {
+      controls.classList.remove("hidden")
+    } else {
+      controls.classList.add("hidden")
+    }
+  }
+  
+  save(event) {
+    let recording = window.URL.createObjectURL(new Blob(this.chunks, {type: this.recorder.mimeType}))
+    let now = new Date().toISOString()
+    let saveButton = document.querySelector("#save")
+    
+    saveButton.addEventListener('progress', event => console.log(event))
+    saveButton.href = recording
+    saveButton.download = "convulse-" + now + ".webm"
+    saveButton.click()
+  }
+
+  frame(timestamp) {
+    if (this.webcamVideo.videoWidth > 0) {
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
+      
+      let desktopAR = this.desktopVideo.videoWidth / this.desktopVideo.videoHeight
+      let desktopHeight = this.canvas.height * this.desktopSize
+      let desktopWidth = desktopHeight * desktopAR
+      let desktopY = (this.canvas.height - desktopHeight) * (Math.floor(this.desktopPos / 3) / 2)
+      let desktopX = (this.canvas.width - desktopWidth) * (Math.floor(this.desktopPos % 3) / 2)
+      this.ctx.drawImage(
+        this.desktopVideo,
+        desktopX, desktopY,
+        desktopWidth, desktopHeight
+      )
+
+      let webcamAR = this.webcamVideo.videoWidth / this.webcamVideo.videoHeight
+      let webcamHeight = this.canvas.height * this.webcamSize
+      let webcamWidth = webcamHeight * webcamAR
+      let webcamY = (this.canvas.height - webcamHeight) * (Math.floor(this.webcamPos / 3) / 2)
+      let webcamX = (this.canvas.width - webcamWidth) * (Math.floor(this.webcamPos % 3) / 2)
+      this.ctx.drawImage(
+        this.webcamVideo,
+        webcamX, webcamY,
+        webcamWidth, webcamHeight
+      )
+    }
+
+    requestAnimationFrame(ts => this.frame(ts))
+  }
+  
 }
 
 function init() {
