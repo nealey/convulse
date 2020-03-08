@@ -55,7 +55,6 @@ class Convulse {
     
     navigator.mediaDevices.getUserMedia({video: true, audio: true})
     .then(media => {
-      console.log(media)
       document.querySelector("#hello").classList.add("hidden")
       this.webcamVideo.muted = true
       this.webcamVideo.srcObject = media
@@ -161,7 +160,7 @@ class Convulse {
   }
 
   frame(timestamp) {
-    if (this.webcamVideo.videoWidth > 0) {
+    if (this.desktopVideo.videoWidth > 0) {
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
       
       let desktopAR = this.desktopVideo.videoWidth / this.desktopVideo.videoHeight
@@ -174,7 +173,9 @@ class Convulse {
         desktopX, desktopY,
         desktopWidth, desktopHeight
       )
-
+    }
+    
+    if (this.webcamVideo.videoWidth > 0) {
       let webcamAR = this.webcamVideo.videoWidth / this.webcamVideo.videoHeight
       let webcamHeight = this.canvas.height * this.webcamSize
       let webcamWidth = webcamHeight * webcamAR
@@ -185,6 +186,7 @@ class Convulse {
         webcamX, webcamY,
         webcamWidth, webcamHeight
       )
+      console.log(webcamAR)
     }
 
     requestAnimationFrame(ts => this.frame(ts))
