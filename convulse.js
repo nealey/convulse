@@ -49,37 +49,42 @@ class Convulse {
     document.querySelector("#desktop-pos").addEventListener("click", e => this.setDesktopPos(e))
     this.desktopPos = localStorage.desktopPos || 0
     
-    this.init()
-  }
-
-  async init() {
-    this.webcamVideo.muted = true
-    this.webcamVideo.srcObject = await navigator.mediaDevices.getUserMedia({video: true, audio: true})
-    this.webcamVideo.play()
-
-    this.desktopVideo.srcObject = await navigator.mediaDevices.getDisplayMedia({video: {cursor: "always"}})
-    this.desktopVideo.play()
+    this.recorder = {state: "unstarted"}
     
-    document.querySelector("#hello").classList.add("hidden")
-  
     this.mediaStream = new MediaStream()
+    
+    navigator.mediaDevices.getUserMedia({video: true, audio: true})
+    .then(media => {
+      console.log(media)
+      document.querySelector("#hello").classList.add("hidden")
+      this.webcamVideo.muted = true
+      this.webcamVideo.srcObject = media
+      this.webcamVideo.play()
+      for (let at of media.getAudioTracks()) {
+        this.mediaStream.addTrack(at)
+        console.log("Adding audio track", at)
+      }
+    })
+    .catch(err => {
+      toast("Couldn't open camera!")
+    })
+
+    navigator.mediaDevices.getDisplayMedia({video: {cursor: "always"}})
+    .then(media => {
+      document.querySelector("#hello").classList.add("hidden")
+      this.desktopVideo.srcObject = media
+      this.desktopVideo.play()
+    })
+    .catch(err => {
+      toast("Couldn't open screen grabber!")
+    })
+  
     let canvasStream = this.canvas.captureStream(30)
     for (let vt of canvasStream.getVideoTracks()) {
       this.mediaStream.addTrack(vt)
       console.log("Adding video track", vt)
     }
-    for (let at of this.webcamVideo.srcObject.getAudioTracks()) {
-      this.mediaStream.addTrack(at)
-      console.log("Adding audio track", at)
-    }
     
-    this.recorder = new MediaRecorder(this.mediaStream, {mimeType: "video/webm"})
-    this.recorder.addEventListener("dataavailable", event => {
-      if (event.data && event.data.size > 0) {
-        this.chunks.push(event.data)
-      }
-    })
-
     this.frame()
 
     toast("Click anywhere to start and stop recording")
@@ -114,14 +119,24 @@ class Convulse {
       document.querySelector("#indicator").classList.add("hidden")
       button.textContent = "⏺️"
       toast("Stopped")
+      document.title = "Convulse: stopped"
       this.save()
     } else {
       // Start
+      this.chunks = []
+      this.recorder = new MediaRecorder(this.mediaStream, {mimeType: "video/webm"})
+      this.recorder.addEventListener("dataavailable", event => {
+        if (event.data && event.data.size > 0) {
+          this.chunks.push(event.data)
+        }
+      })
+      
       this.recorder.start(10)
       this.canvas.classList.add("recording")
       document.querySelector("#indicator").classList.remove("hidden")
       button.textContent = "⏹️"
       toast("Recording: click anywhere to stop")
+      document.title = "Convulse: recording"
     }
   }
   
